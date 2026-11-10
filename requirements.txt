@@ -1,0 +1,6 @@
+pandas
+kagglehub
+beautifulsoup4
+curl-cffi
+torch
+scikit-learn
