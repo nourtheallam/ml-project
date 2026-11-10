@@ -9,31 +9,37 @@ import pickle
 def main(features_path: str, targets_path: str, target: str):
     """Uses PKL files of feature and target values to train a LightGBM classifier to predict movie revenue categories."""
 
+    # Load specified datasets
     print("Loading preprocessed pickle files...")
     X = pd.read_pickle(features_path)
     y_raw = pd.read_pickle(targets_path)
     y = y_raw[target].astype(int)
 
-    print("Flattening multi-hot lists and categorical features into a numeric matrix...")
+    # Transform into input digestable by model
+    print("Flattening lists")
     processed_dfs = []
     for col in X.columns:
+        # If a feature's entries are in list form (multi-hot encoded),
+        # then separate it into multiple features (one for each index in the list)
         if X[col].apply(lambda x: isinstance(x, list)).any():
             expanded_df = pd.DataFrame(X[col].tolist(), index=X.index)
             expanded_df.columns = [f"{col}_idx_{i}" for i in range(expanded_df.shape[1])]
             processed_dfs.append(expanded_df)
         else:
             processed_dfs.append(X[[col]])
-
     X_flat = pd.concat(processed_dfs, axis=1)
-    X_flat = X_flat.apply(pd.to_numeric, errors='coerce').fillna(0)
 
+    # Ensure all data is properly formatted as numeric
+    X_flat = X_flat.apply(pd.to_numeric, errors='coerce').fillna(0)
     X_np = X_flat.values.astype(np.float32)
     y_np = y.values.astype(np.int64)
 
+    # Do a train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X_np, y_np, test_size=0.2, random_state=42, stratify=y_np
     )
 
+    # Initialize LGBM classifier model
     print("Training LightGBM Classifier...")
     model = lgb.LGBMClassifier(
         objective='multiclass',
@@ -44,24 +50,23 @@ def main(features_path: str, targets_path: str, target: str):
         verbose=-1
     )
 
+    # Train model
     model.fit(X_train, y_train)
 
+    # Test model
     print("\nEvaluating Model...")
     preds = model.predict(X_test)
     acc = accuracy_score(y_test, preds)
 
-    print(f"\n===============================")
-    print(f"     MODEL EVALUATION")
-    print(f"===============================")
+    # Print test results
     print(f"Test Accuracy: {acc*100:.2f}%")
     print("\nClassification Report:")
     print(classification_report(y_test, preds))
 
-    model_filename = "movie_revenue_lgb_classifier.pkl"
+    # Save the model
+    model_filename = "models/movie_revenue_lgb_classifier.pkl"
     with open(model_filename, "wb") as f:
         pickle.dump(model, f)
-
-    print(f"Trained LightGBM classifier saved successfully as '{model_filename}'!")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LightGBM classification model using preprocessed movie data.")
