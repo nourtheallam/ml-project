@@ -6,7 +6,7 @@ A modular pipeline to scrape movie reviews from Letterbox and train a LightGBM c
 
 ## Prerequisites & Installation
 
-This folder is packaged with a custom virtual python environment. Make sure to run the code within it. 
+Make sure to pip install the requirements.txt
 
 ---
 
