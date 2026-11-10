@@ -2,17 +2,16 @@
 
 A modular pipeline to scrape movie reviews from Letterbox and train a LightGBM classification model to predict box office revenue using the scarped reviews and other features.
 
----
 
 ## Prerequisites & Installation
 
 Make sure to pip install the requirements.txt
 
----
 
 ## Pipeline Usage Instructions
 
 Run the scripts in the following order to execute the full data processing and training workflow.
+
 
 ### 1. Scrape Letterboxd Reviews (letterboxd.py)
 Downloads the box office dataset from Kaggle and scrapes popular reviews from Letterboxd for each movie.
@@ -23,7 +22,6 @@ Downloads the box office dataset from Kaggle and scrapes popular reviews from Le
   * `--output` *(Required)*: Path to save the output CSV file containing the scraped reviews.
   * `--num_reviews` *(Optional)*: Number of popular reviews to scrape per movie (defaults to `3`).
 
----
 
 ### 2. Numerical Encoding (numerical_encoding.py)
 Processes the updated dataset, handles categorical features, multi-hot encodes lists (Genres, Production Countries), bins continuous revenue targets into classes (`0` to `3`), and exports local pickle files (`.pkl`).
@@ -33,7 +31,6 @@ Processes the updated dataset, handles categorical features, multi-hot encodes l
 * **Arguments:**
   * `--input` *(Required)*: Path to the input CSV dataset generated from the scraping step.
 
----
 
 ### 3. LightGBM Classification Predictor (predictor.py)
 Ingests the preprocessed pickle files, flattens multi-hot lists into a numeric matrix, and trains/evaluates a LightGBM multi-class classifier.
