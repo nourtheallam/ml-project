@@ -4,3 +4,4 @@ beautifulsoup4
 curl-cffi
 torch
 scikit-learn
+pyarrow

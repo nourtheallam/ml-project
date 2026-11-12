@@ -1,12 +1,13 @@
 import argparse
 import pandas as pd
 
-def main(input_path: str):
+def main(input_path: str, output_x: str, output_y: str):
     """Cleans the given dataset so that it's ready to be used as a model's input."""
 
     movies_dataset = pd.read_csv(input_path)
     # Drop revenue indicators from the feature dataset
-    movies_dataset_x = (movies_dataset.drop(columns=["Rank", "Release Group", "$Worldwide", "$Domestic", "$Foreign", "Foreign %", "Domestic %"]))
+    movies_dataset_x = (movies_dataset.drop(columns=["Rank", "Release Group", "$Worldwide", "$Domestic", "$Foreign", "Foreign %", "Domestic %", "Vote_Count", "Rating"]))
+    if("Reviews" in movies_dataset_x.columns): movies_dataset_x = (movies_dataset_x.drop(columns=["Reviews"])) 
     # We want to predict domestic and foreign income ranges
     movies_dataset_y = (movies_dataset[["$Domestic", "$Foreign"]])
     # Drop the scraped reviews column (save it for sentiment analysis)
@@ -53,17 +54,20 @@ def main(input_path: str):
             new_col.append(multihot_vector)
         movies_dataset_x[col] = new_col    
 
-    # Just remove the "/10" term for the rating entries
-    movies_dataset_x["Rating"] = movies_dataset_x["Rating"].str[:-3]
+    # # Just remove the "/10" term for the rating entries
+    # movies_dataset_x["Rating"] = movies_dataset_x["Rating"].str[:-3]
 
-    # Save the final feature and target datasets as pickle files
-    movies_dataset_x.to_pickle("processed-datasets/x-basic.pkl")
-    movies_dataset_y.to_pickle("processed-datasets/y.pkl")
+    # Save the final feature and target datasets as pickle files using command-line arguments
+    movies_dataset_x.to_pickle(output_x)
+    movies_dataset_y.to_pickle(output_y)
     print(movies_dataset_x)
     print(movies_dataset_y)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process dataset to make input vectors numerical and of fixed length.")
     parser.add_argument("--input", required=True, help="Path to input movies dataset CSV")
+    parser.add_argument("--output_x", required=True, help="Path to save the processed features X pickle file")
+    parser.add_argument("--output_y", required=True, help="Path to save the target labels Y pickle file")
+    
     args = parser.parse_args()
-    main(input_path=args.input)
+    main(input_path=args.input, output_x=args.output_x, output_y=args.output_y)
