@@ -1,48 +1,75 @@
-# Movie Box Office & Review Analysis Pipeline
+# Comprehensive Box Office Revenue Prediction & Ablation Study Pipeline
 
-A modular pipeline to scrape movie reviews from Letterbox and train a LightGBM classification model to predict box office revenue using the scarped reviews and other features.
+This document serves as the complete technical reference and operational guide for the automated end-to-end machine learning pipeline built to predict domestic and foreign box office revenue using structural metadata, sentiment statistics, emotion scores, and textual TF-IDF features.
 
+---
 
-## Prerequisites & Installation
+## 1. System Overview & Methodology
 
-Make sure to pip install the requirements.txt
+* **Target Variable Transformation:** Box office revenues exhibit a massive right-skew (ranging from indie films earning $50,000 to blockbusters earning $2,000,000,000). The pipeline applies a `log1p` transformation to stabilize variance and prevent outlier dominance during training.
+* **Core Regressor:** Utilizes **LightGBM** (`LGBMRegressor`), configured with robust hyperparameter tuning via `RandomizedSearchCV` across a 3-fold cross-validation split, coupled with early stopping to prevent overfitting.
+* **Ablation Study Structure:** Systematically evaluates six distinct feature configurations to quantify the performance lift provided by NLP text semantics over baseline structural metadata.
 
+---
 
-## Pipeline Usage Instructions
+## 2. Complete File & Script Directory
 
-Run the scripts in the following order to execute the full data processing and training workflow.
+Here is the operational breakdown of every script in the pipeline:
 
+* **`run_all_experiments.py` (The Orchestrator)**
+  * Manages the end-to-end execution flow.
+  * Sequentially invokes preprocessing, sentiment extraction, emotion extraction, and TF-IDF vectorization.
+  * Iterates through all 6 ablation configurations for both `Domestic` and `Foreign` revenue targets, passing appropriate feature flags to `predictor.py`.
+  * Automatically triggers `plot_results.py` upon completion.
 
-### 1. Scrape Letterboxd Reviews (letterboxd-scraper.py)
-Downloads the box office dataset from Kaggle and scrapes popular reviews from Letterboxd for each movie.
+* **`data-processor.py` (Metadata Feature Extractor)**
+  * Cleans the raw dataset and drops unneeded fields.
+  * Encodes categorical metadata: maps single-value categorical columns (e.g., original language) and generates multi-hot encoded vectors for multi-value fields (e.g., genres, production countries).
+  * Outputs `processed_features_x.pkl` and `processed_targets_y.pkl`.
 
-**Usage:**
-  python3 letterboxd-scraper.py --output <OUTPUT_FILE_PATH> [--num_reviews 15] [--max_pages 3] [--delay 1.0] [--checkpoint 50] [--workers 6]
+* **`sentiment-analyzer.py` (Sentiment Feature Extractor)**
+  * Parses review text using a transformer model (`cardiffnlp/twitter-roberta-base-sentiment-latest`).
+  * Computes aggregated numerical statistics per movie: sentiment standard deviation, positive sentiment ratio, mean word count, and exclamation mark density.
+  * Outputs `sentiment_features.pkl`.
 
-**Arguments:**
-  * `--output` *(Required)*: Path to save the output CSV (and `.pkl` checkpoint) file containing the scraped reviews.
-  * `--num_reviews` *(Optional)*: Maximum number of reviews to collect per movie (defaults to `15`).
-  * `--max_pages` *(Optional)*: Maximum number of review pagination pages to traverse per movie (defaults to `3`).
-  * `--delay` *(Optional)*: Sleep delay in seconds between page requests to avoid rate-limiting (defaults to `1.0`).
-  * `--checkpoint` *(Optional)*: Frequency of completed movies between periodic backup saves (defaults to `50`).
-  * `--workers` *(Optional)*: Number of concurrent worker threads running in parallel (defaults to `6`).
+* **`emotion-analyzer.py` (Emotion Feature Extractor)**
+  * Extracts specialized emotional indicators from review corpora (specifically focusing on mean joy and mean anger scores).
+  * Captures polarity nuances that standard positive/negative sentiment metrics miss.
+  * Outputs `emotion_features.pkl`.
 
+* **`tfidf-processor.py` (Text Vectorizer)**
+  * Tokenizes review text, strips English stop words, and fits a `TfidfVectorizer` (unigrams and bigrams, limited by max features and minimum document frequency thresholds).
+  * Generates a sparse matrix bundle stored as `tfidf_bundle.pkl`.
 
-### 2. Numerical Encoding (data-processor.py)
-Processes the updated dataset, handles categorical features, multi-hot encodes lists (Genres, Production Countries), bins continuous revenue targets into classes (`0` to `3`), and exports local pickle files (`.pkl`).
+* **`predictor.py` (Model Trainer & Tuner)**
+  * Aligns indices across metadata, sentiment, and sparse TF-IDF feature arrays.
+  * Stacks tabular arrays and sparse matrices using `scipy.sparse.hstack`.
+  * Tunes hyperparameters (`n_estimators`, `learning_rate`, `num_leaves`, `max_depth`, `min_child_samples`, `subsample`, `colsample_bytree`, regularization terms) via `RandomizedSearchCV`.
+  * Trains the final LightGBM model with early stopping and saves model artifacts inside `models/`.
 
-* **Usage:**
-  python3 data-processor.py --input <RAW CSV FILE PATH>
-* **Arguments:**
-  * `--input` *(Required)*: Path to the input CSV dataset generated from the scraping step.
+* **`plot_results.py` (Diagnostic Visualization Suite)**
+  * Scans saved model pickles in the `models/` directory (robustly parsing configuration names and targets from metadata dictionaries or filenames).
+  * Automatically generates configuration-specific parity plots, residual plots, and cross-ablation comparative bar charts.
+  * Saves all figures to the designated plots directory.
 
+---
 
-### 3. LightGBM Classification Predictor (predictor.py)
-Ingests the preprocessed pickle files, flattens multi-hot lists into a numeric matrix, and trains/evaluates a LightGBM multi-class classifier.
+## 3. The 6-Tier Ablation Study Matrix
 
-* **Usage:**
-  python3 predictor.py --features <X .pkl filename> --targets <y .pkl filename> --target <either "Domestic" or "Foreign">
-* **Arguments:**
-  * `--features` *(Required)*: Path to the features pickle file (e.g., `movies_dataset_x.pkl`).
-  * `--targets` *(Required)*: Path to the targets pickle file (e.g., `movies_dataset_y.pkl`).
-  * `--target` *(Required)*: Name of the target column to predict (e.g., `Domestic` or `Foreign`).
+The orchestrator runs experiments across these exact feature configurations:
+
+1. **`metadata_only`**: Structural metadata features only (baseline).
+2. **`sentiment_only`**: Metadata + transformer-based sentiment statistics.
+3. **`emotions_only`**: Metadata + emotion scores (joy and anger).
+4. **`tfidf_only`**: Metadata + sparse TF-IDF review n-grams.
+5. **`sentiment_plus_emotions`**: Metadata + sentiment statistics + emotion scores.
+6. **`all_combined`**: Full model combining metadata, sentiment, emotions, and TF-IDF features.
+
+---
+
+## 4. Environment Setup & Execution Instructions
+
+### Prerequisites
+Ensure Python 3.x is installed along with the required machine learning and data science libraries:
+```bash
+pip install lightgbm transformers scikit-learn tqdm matplotlib pandas scipy
