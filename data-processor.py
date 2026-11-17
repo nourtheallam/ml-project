@@ -115,6 +115,12 @@ def main(input_path: str, output_x: str, output_y: str):
     # Remove duplicate input columns when their contents are identical
     movies_dataset = remove_duplicate_input_columns(movies_dataset)
 
+    # Remove all zero revenue entries
+    movies_dataset = movies_dataset[
+        (movies_dataset["$Domestic"] != 0) &
+        (movies_dataset["$Foreign"] != 0)
+    ]
+
     # Drop the "Reviews" column, if it exists
     movies_dataset = movies_dataset.drop(columns=['Reviews'], errors='ignore')
 

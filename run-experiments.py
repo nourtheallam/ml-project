@@ -25,9 +25,9 @@ from sklearn.metrics import (
 
 DATASETS = [
     "reviews-expanded.csv",
-    "reviews-sentiments-expanded.csv",
-    "reviews-emotions-expanded.csv",
-    "reviews-sentiments-and-emotions-expanded.csv"
+    "review-sentiments-expanded.csv",
+    "review-emotions-expanded.csv",
+    "reviews-sentiments-emotions-expanded.csv"
 ]
 
 TARGETS = ["Domestic", "Foreign", "Worldwide"]
@@ -128,17 +128,21 @@ def train_and_evaluate(X, Y, target):
         random_state=RANDOM_STATE
     )
 
+    # Transform revenue targets using log1p
+    y_fit_log = np.log1p(y_fit[target])
+    y_val_log = np.log1p(y_val[target])
+
     model = lgb.LGBMRegressor(**MODEL_PARAMS)
 
     print(f"Training model for {target}...")
 
     model.fit(
         X_fit,
-        y_fit[target],
+        y_fit_log,
 
         eval_set=[
-            (X_fit, y_fit[target]),
-            (X_val, y_val[target])
+            (X_fit, y_fit_log),
+            (X_val, y_val_log)
         ],
 
         eval_names=["training", "validation"],
@@ -155,7 +159,7 @@ def train_and_evaluate(X, Y, target):
     # Predict test set
     predictions = model.predict(X_test)
 
-    actual = y_test[target].to_numpy()
+    actual = np.log1p(y_test[target].to_numpy())
 
     # Calculate metrics
     r2 = r2_score(actual, predictions)
@@ -169,8 +173,8 @@ def train_and_evaluate(X, Y, target):
     print(
         f"{target}: "
         f"R2={r2:.4f} | "
-        f"RMSE={rmse:.2f} | "
-        f"MAE={mae:.2f} | "
+        f"Log RMSE={rmse:.4f} | "
+        f"Log MAE={mae:.4f} | "
         f"Best iteration={model.best_iteration_}"
     )
 
@@ -213,24 +217,22 @@ def plot_actual_vs_predicted(dataset_name, results, output_dir):
 
         # Logarithmic transformation makes highly skewed
         # movie revenue distributions easier to visualize.
-        actual_plot = np.log1p(np.maximum(actual, 0))
-        predictions_plot = np.log1p(np.maximum(predictions, 0))
 
         ax.scatter(
-            actual_plot,
-            predictions_plot,
+            actual,
+            predictions,
             alpha=0.5,
             s=20
         )
 
         lower = min(
-            actual_plot.min(),
-            predictions_plot.min()
+            actual.min(),
+            predictions.min()
         )
 
         upper = max(
-            actual_plot.max(),
-            predictions_plot.max()
+            actual.max(),
+            predictions.max()
         )
 
         ax.plot(
@@ -245,8 +247,8 @@ def plot_actual_vs_predicted(dataset_name, results, output_dir):
             f"R² = {result['r2']:.3f}"
         )
 
-        ax.set_xlabel("Actual Revenue (log1p)")
-        ax.set_ylabel("Predicted Revenue (log1p)")
+        ax.set_xlabel("Actual Log Revenue")
+        ax.set_ylabel("Predicted Log Revenue")
 
         ax.grid(alpha=0.25)
 

@@ -13,15 +13,19 @@ tqdm.pandas(desc="")
 
 def classify_row(classifier, reviews_row):
     """Translates each row of reviews into a list and classifies each review in it."""
-    emotions = []
-    reviews_list = reviews_row.split(',')
-    emotions = classifier(
+    sentiments = []
+    reviews_row_parsed = ast.literal_eval(reviews_row)
+    reviews_list = [
+        review for review in reviews_row_parsed
+        if isinstance(review, str) and review.strip()
+    ]
+    sentiments = classifier(
         reviews_list,
         truncation=True,
         max_length=512,
         batch_size=16
     )
-    return emotions
+    return sentiments
 
 def main(input_path, output_path):
     # Accept both .csv and .pkl input
