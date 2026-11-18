@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from transformers import pipeline
 from tqdm import tqdm
-from joblib import Parallel, delayed
 
 tqdm.pandas(desc="")
 
